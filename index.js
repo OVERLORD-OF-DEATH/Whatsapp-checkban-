@@ -4,11 +4,11 @@ const express = require('express');
 const cors = require('cors');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 10000;
 
 app.use(cors());
 app.get('/', (req, res) => {
-    res.send('WhatsApp bot is running. Check Render logs for QR code.');
+    res.send('WhatsApp bot is running.');
 });
 
 let sock;
@@ -18,10 +18,8 @@ async function startSock() {
 
     sock = makeWASocket({
         auth: state,
-        printQRInTerminal: true, // <-- changé ici
-        usePairingCode: false,
-        logger: pino({ level: 'info' }), // <-- changé ici pour voir le QR
-        browser: ['Render-Bot', 'Chrome', '1.0.0']
+        logger: pino({ level: 'info' }),
+        browser: ['Ubuntu', 'Chrome', '22.04.4']
     });
 
     sock.ev.on('connection.update', (update) => {
