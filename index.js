@@ -1,11 +1,12 @@
 const { default: makeWASocket, useMultiFileAuthState, DisconnectReason } = require('@whiskeysockets/baileys');
 const pino = require('pino');
 const express = require('express');
-const fs = require('fs');
+const cors = require('cors');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+app.use(cors());
 app.get('/', (req, res) => {
     res.send('WhatsApp bot is running. Check Render logs for QR code.');
 });
@@ -17,9 +18,9 @@ async function startSock() {
 
     sock = makeWASocket({
         auth: state,
-        printQRInTerminal: false,
+        printQRInTerminal: true, // <-- changé ici
         usePairingCode: false,
-        logger: pino({ level: 'silent' }),
+        logger: pino({ level: 'info' }), // <-- changé ici pour voir le QR
         browser: ['Render-Bot', 'Chrome', '1.0.0']
     });
 
@@ -27,15 +28,16 @@ async function startSock() {
         const { connection, lastDisconnect, qr } = update;
 
         if (qr) {
-            console.log('QR RECEIVED. Open this link in browser to see QR image:');
+            console.log('\n========== SCAN THIS QR ==========');
             console.log(`https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(qr)}`);
+            console.log('==================================\n');
         }
 
         if (connection === 'close') {
             const shouldReconnect = lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
             console.log('Connection closed. Reconnect:', shouldReconnect);
             if (shouldReconnect) {
-                startSock();
+                setTimeout(startSock, 3000);
             }
         }
 
