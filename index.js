@@ -1,67 +1,54 @@
-
-const express = require('express');
-const cors = require('cors');
 const { default: makeWASocket, useMultiFileAuthState, DisconnectReason } = require('@whiskeysockets/baileys');
+const pino = require('pino');
+const express = require('express');
 const fs = require('fs');
 
 const app = express();
-app.use(cors());
-app.use(express.json());
+const PORT = process.env.PORT || 3000;
+
+app.get('/', (req, res) => {
+    res.send('WhatsApp bot is running. Check Render logs for QR code.');
+});
 
 let sock;
-let isConnected = false;
-let pairingRequested = false;
 
 async function startSock() {
-  const { state, saveCreds } = await useMultiFileAuthState('./auth_info');
-  sock = makeWASocket({
-    auth: state,
-    printQRInTerminal: false
-  });
+    const { state, saveCreds } = await useMultiFileAuthState('./auth_info_baileys');
 
-  sock.ev.on('creds.update', saveCreds);
-  
-  sock.ev.on('connection.update', async (update) => {
-    const { connection, lastDisconnect } = update;
-    
-    if (connection === 'close') {
-      isConnected = false;
-      const shouldReconnect = (lastDisconnect.error)?.output?.statusCode !== DisconnectReason.loggedOut;
-      console.log('Connection closed. Reconnect:', shouldReconnect);
-      if (shouldReconnect) {
-        setTimeout(startSock, 5000); // Attend 5s avant de retry
-      }
-    } else if (connection === 'open') {
-      isConnected = true;
-      pairingRequested = false;
-      console.log('Connecté à WhatsApp ✅');
-    }
+    sock = makeWASocket({
+        auth: state,
+        printQRInTerminal: false,
+        usePairingCode: false,
+        logger: pino({ level: 'silent' }),
+        browser: ['Render-Bot', 'Chrome', '1.0.0']
+    });
 
-    // Demande le code une seule fois
-    if (!sock.authState.creds.registered && !pairingRequested) {
-      pairingRequested = true;
-      await new Promise(resolve => setTimeout(resolve, 3000));
-      const phoneNumber = process.env.PHONE_NUMBER;
-      if (phoneNumber) {
-        try {
-          const code = await sock.requestPairingCode(phoneNumber);
-          console.log(`\n========== CODE DE COUPLAGE ==========\n${code}\n======================================\n`);
-        } catch (e) {
-          console.log('Erreur pairing:', e.message);
-          pairingRequested = false;
+    sock.ev.on('connection.update', (update) => {
+        const { connection, lastDisconnect, qr } = update;
+
+        if (qr) {
+            console.log('QR RECEIVED. Open this link in browser to see QR image:');
+            console.log(`https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(qr)}`);
         }
-      } else {
-        console.log('PHONE_NUMBER manquant dans les variables d’environnement');
-      }
-    }
-  });
+
+        if (connection === 'close') {
+            const shouldReconnect = lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
+            console.log('Connection closed. Reconnect:', shouldReconnect);
+            if (shouldReconnect) {
+                startSock();
+            }
+        }
+
+        if (connection === 'open') {
+            console.log('Connected successfully!');
+        }
+    });
+
+    sock.ev.on('creds.update', saveCreds);
 }
 
 startSock();
 
-app.get('/', (req, res) => {
-  res.send(`Statut: ${isConnected ? 'Connecté ✅' : 'Déconnecté ❌'}`);
+app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
 });
-
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
