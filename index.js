@@ -24,4 +24,14 @@ async function startSock() {
       isConnected = false;
       const shouldReconnect = (lastDisconnect.error)?.output?.statusCode !== DisconnectReason.loggedOut;
       if (shouldReconnect) startSock();
-    } else if (connection  === 'open') {
+    } else if (connection === 'open') {
+      isConnected = true;
+      console.log('Connecté à WhatsApp');
+    }
+  });
+}
+
+startSock();
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
