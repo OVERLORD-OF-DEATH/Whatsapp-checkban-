@@ -24,4 +24,4 @@ async function startSock() {
       isConnected = false;
       const shouldReconnect = (lastDisconnect.error)?.output?.statusCode !== DisconnectReason.loggedOut;
       if (shouldReconnect) startSock();
-    } else if (connection === 'open
+    } else if (connection  === 'open ) {
