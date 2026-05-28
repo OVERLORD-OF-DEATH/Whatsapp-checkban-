@@ -18,7 +18,7 @@ async function startSock() {
 
   sock.ev.on('creds.update', saveCreds);
   
-  sock.ev.on('connection.update', (update) => {
+  sock.ev.on('connection.update', async (update) => {
     const { connection, lastDisconnect } = update;
     if (connection === 'close') {
       isConnected = false;
@@ -29,9 +29,25 @@ async function startSock() {
       console.log('Connecté à WhatsApp');
     }
   });
+
+  // Si pas encore connecté, demande le code de couplage
+  if (!sock.authState.creds.registered) {
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    const phoneNumber = process.env.PHONE_NUMBER; // Mets ton numéro dans Render
+    if (phoneNumber) {
+      const code = await sock.requestPairingCode(phoneNumber);
+      console.log(`Code de couplage: ${code}`);
+    } else {
+      console.log('Ajoute PHONE_NUMBER dans les variables d’environnement Render');
+    }
+  }
 }
 
 startSock();
+
+app.get('/', (req, res) => {
+  res.send(`Statut: ${isConnected ? 'Connecté ✅' : 'Déconnecté ❌'}`);
+});
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
